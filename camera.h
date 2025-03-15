@@ -40,7 +40,7 @@ public:
         return Ray(pos, direction.normalize());
     }
 
-    Vector3f getpos() const { return pos; }
+    Vector3f getPos() const { return pos; }
     Vector3f getY() const { return Y; }
     Vector3f getZ() const { return Z; }
     Vector3f getX() const { return X; }

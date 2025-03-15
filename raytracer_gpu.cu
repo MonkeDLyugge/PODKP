@@ -239,12 +239,9 @@ __device__ CudaVector3f calculateLighting(const CudaScene& scene, const CudaInte
         }
 
         CudaVector3f refDir = ray.direction + intersection.normal * -2.0f * ray.direction.dot(intersection.normal);
-        
+        CudaVector3f lightDir = (light.position - intersection.point).normalize();
         specIntencity = powf(fmaxf(0.0f, -refDir.dot(lightDir)), 32.0f);
         specColor = specColor + light.color * specIntencity * 0.5f;
-        
-        CudaVector3f lightDir = (light.position - intersection.point).normalize();
-        
         diffIntencity = fmaxf(0.0f, intersection.normal.dot(lightDir));
         diffColor = diffColor + light.color * intersection.color * diffIntencity;
     }
@@ -262,7 +259,7 @@ __device__ CudaVector3f calculateLighting(const CudaScene& scene, const CudaInte
 __device__ CudaVector3f backgroundColor(const CudaRay& ray) {
     float t = (ray.direction.y + 1.0f) * 0.5f;
     CudaVector3f colorA(1.0f, 1.0f, 1.0f);
-    CudaVector3f colorB(0.4f, 0.6f, 0.9f);
+    CudaVector3f colorB(0.5f, 0.7f, 1.0f);
     return colorB * t + colorA * (1.0f - t);
 }
 
@@ -278,8 +275,8 @@ __device__ CudaVector3f traceRay(const CudaScene& scene, const CudaRay& ray) {
 
 
 __global__ void rayTraceKernel(CudaVector3f* buffer, int width, int height, float aspectRatio, 
-                               float fov, CudaVector3f cameraPos, CudaVector3f cameraForward, 
-                               CudaVector3f cameraRight, CudaVector3f cameraUp, 
+                               float fov, CudaVector3f cameraPos, CudaVector3f cameraY, 
+                               CudaVector3f cameraX, CudaVector3f cameraZ, 
                                CudaScene scene, int ssaa) {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -293,7 +290,7 @@ __global__ void rayTraceKernel(CudaVector3f* buffer, int width, int height, floa
                 float subpixelY = y + (sy + 0.5f) / ssaa;
 
                 CudaRay ray = generateRay(subpixelX, subpixelY, width, height, aspectRatio, 
-                                         fov, cameraPos, cameraForward, cameraRight, cameraUp);
+                                         fov, cameraPos, cameraY, cameraX, cameraZ);
                 
                 pixelColor = pixelColor + traceRay(scene, ray);
             }
@@ -358,7 +355,7 @@ void prepareCudaScene(const Scene& cpuScene, CudaScene& cudaScene, CudaPlatonicS
     
     host_floor.color = CudaVector3f(cpuScene.floor.color.x, cpuScene.floor.color.y, cpuScene.floor.color.z);
 
-    std::vector<gpuLight> host_lights(cpuScene.lights.size());
+    std::vector<CudaLight> host_lights(cpuScene.lights.size());
     
     for (size_t i = 0; i < cpuScene.lights.size(); i++) {
         const Light& cpuLight = cpuScene.lights[i];
@@ -397,10 +394,10 @@ unsigned long long rayTraceGPU(const Scene& scene, const Camera& camera,
     int height = camera.getHeight();
     float aspectRatio = (float)width / height;
 
-    CudaVector3f cameraPos(camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
-    CudaVector3f cameraForward(camera.getForward().x, camera.getForward().y, camera.getForward().z);
-    CudaVector3f cameraRight(camera.getRight().x, camera.getRight().y, camera.getRight().z);
-    CudaVector3f cameraUp(camera.getUp().x, camera.getUp().y, camera.getUp().z);
+    CudaVector3f cameraPos(camera.getPos().x, camera.getPos().y, camera.getPos().z);
+    CudaVector3f cameraY(camera.getY().x, camera.getY().y, camera.getY().z);
+    CudaVector3f cameraX(camera.getX().x, camera.getX().y, camera.getX().z);
+    CudaVector3f cameraZ(camera.getZ().x, camera.getZ().y, camera.getZ().z);
     float fov = camera.getFov();
 
     CudaVector3f* dev_buffer;
@@ -418,7 +415,7 @@ unsigned long long rayTraceGPU(const Scene& scene, const Camera& camera,
                   (height + blockSize.y - 1) / blockSize.y);
     
     rayTraceKernel<<<gridSize, blockSize>>>(dev_buffer, width, height, aspectRatio, 
-                                            fov, cameraPos, cameraForward, cameraRight, cameraUp, 
+                                            fov, cameraPos, cameraY, cameraX, cameraZ, 
                                             cudaScene, ssaa);
 
     CHECK_CUDA_ERROR(cudaGetLastError());
@@ -429,7 +426,7 @@ unsigned long long rayTraceGPU(const Scene& scene, const Camera& camera,
                           cudaMemcpyDeviceToHost));
 
     for (size_t i = 0; i < buffer.size(); ++i) {
-        buffer[i] = Vector3f(cudaBuffer[i].x, cudabuffer[i].y, cudaBuffer[i].z);
+        buffer[i] = Vector3f(cudaBuffer[i].x, cudaBuffer[i].y, cudaBuffer[i].z);
     }
 
     CHECK_CUDA_ERROR(cudaFree(dev_buffer));

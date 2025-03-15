@@ -24,9 +24,9 @@ void printDefaultConfig() {
     std::cout << "800 600 90\n";
     std::cout << "7.0 3.0 0.0 2.0 1.0 2.0 6.0 1.0 0.0 0.0\n";
     std::cout << "2.0 0.0 0.0 0.5 0.1 1.0 4.0 1.0 0.0 0.0\n";
-    std::cout << "2.0 0.0 0.0 1.0 0.0 0.0 1.0 0.0 0.0 0\n";
-    std::cout << "0.0 2.0 0.0 0.0 1.0 0.0 0.75 0.0 0.0 0\n";
-    std::cout << "0.0 0.0 2.0 0.0 0.7 0.7 0.5 0.0 0.0 0\n";
+    std::cout << "2.0 0.0 0.0 2.0 0.3 0.9 1.0 0.0 0.0 0\n";
+    std::cout << "0.0 2.0 0.0 1.5 1.0 0.4 0.75 0.0 0.0 0\n";
+    std::cout << "0.0 0.0 2.0 0.0 0.2 0.7 0.5 0.0 0.0 0\n";
     std::cout << "-5.0 -5.0 -1.0 -5.0 5.0 -1.0 5.0 5.0 -1.0 5.0 -5.0 -1.0 none 0.0 1.0 0.0 0.0\n";
     std::cout << "1\n";
     std::cout << "-10.0 10.0 10.0 1.0 1.0 1.0\n";
@@ -34,19 +34,19 @@ void printDefaultConfig() {
 }
 
 int main(int argc, char* argv[]) {
-    bool useGPU = false;
+    bool useGPU = true;
 #ifdef IF_CUDA
     useGPU = true;
 #endif
     
     if (argc > 1) {
         if (strcmp(argv[1], "--cpu") == 0) {
-            useGPU = true;
+            useGPU = false;
         } else if (strcmp(argv[1], "--default") == 0) {
             printDefaultConfig();
             return 0;
         } else if (strcmp(argv[1], "--gpu") != 0 && strcmp(argv[1], "") != 0) {
-            std::cerr << "Unknown argument: " << argv[1] << std::endl;
+            cerr << "Unknown argument: " << argv[1] << "\n";
             return 1;
         }
     }
@@ -86,7 +86,7 @@ int main(int argc, char* argv[]) {
         
         PlatonicSolid solid;
         solid.center = Vector3f(x, y, z);
-        solid.color = Vector3f(r, g, b);
+        solid.color = Vector3f(b, g, r);
         solid.radius = radius;
         solid.reflectivity = reflectivity;
         solid.transparency = transparency;
@@ -110,13 +110,12 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < lightCount; i++) {
         float x, y, z, r, g, b;
         cin >> x >> y >> z >> r >> g >> b;
-        lights.emplace_back(Light(Vector3f(x, y, z), Vector3f(r, g, b)));
+        lights.emplace_back(Light(Vector3f(x, y, z), Vector3f(b, g, r)));
         if (i == 0) break;
     }
 
     cin >> maxDepth >> ssaaSqrt;
 
-    maxDepth = 1;
     Scene scene;
     scene.solids = solids;
     scene.floor = Floor(floorPoints, floorColor, floorReflectivity);
@@ -177,9 +176,9 @@ int main(int argc, char* argv[]) {
                 unsigned char g = std::min(255, static_cast<int>(frameBuffer[idx].y * 255));
                 unsigned char b = std::min(255, static_cast<int>(frameBuffer[idx].z * 255));
                 
-                outFile.write(reinterpret_cast<char*>(&r), sizeof(r));
+                outFile.write(reinterpret_cast<char*>(&r), sizeof(b));
                 outFile.write(reinterpret_cast<char*>(&g), sizeof(g));
-                outFile.write(reinterpret_cast<char*>(&b), sizeof(b));
+                outFile.write(reinterpret_cast<char*>(&b), sizeof(r));
             }
         }
         outFile.close();

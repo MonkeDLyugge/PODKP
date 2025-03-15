@@ -1,5 +1,5 @@
 CXX = /usr/bin/g++
-NVCC = /usr/bin/nvcc
+NVCC = nvcc
 CXXFLAGS = -std=c++11 -O3 -DUSE_CUDA -I/usr/local/cuda/include
 LDFLAGS = -L/usr/local/cuda/lib64 -lcudart
 SOURCES = main.cpp raytracer_cpu.cpp
